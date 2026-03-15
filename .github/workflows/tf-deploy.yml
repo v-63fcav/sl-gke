@@ -1,0 +1,58 @@
+name: Terraform Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  infra:
+    name: Terraform Deployment - Infra
+    runs-on: ubuntu-latest
+    outputs:
+      cluster_name:     ${{ steps.export.outputs.cluster_name }}
+      cluster_endpoint: ${{ steps.export.outputs.cluster_endpoint }}
+      cluster_ca:       ${{ steps.export.outputs.cluster_ca }}
+      project:          ${{ steps.export.outputs.project }}
+      region:           ${{ steps.export.outputs.region }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=sl-gke-tf-state-cavi" \
+            -backend-config="prefix=terraform/infra"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -no-color -input=false
+        continue-on-error: false
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      - name: Export Outputs
+        id: export
+        run: |
+          echo "cluster_name=$(terraform output -raw cluster_name)"         >> $GITHUB_OUTPUT
+          echo "cluster_endpoint=$(terraform output -raw cluster_endpoint)" >> $GITHUB_OUTPUT
+          echo "cluster_ca=$(terraform output -raw cluster_ca)"             >> $GITHUB_OUTPUT
+          echo "project=$(terraform output -raw project)"                   >> $GITHUB_OUTPUT
+          echo "region=$(terraform output -raw region)"                     >> $GITHUB_OUTPUT

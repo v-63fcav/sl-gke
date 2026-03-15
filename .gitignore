@@ -1,0 +1,23 @@
+# Terraform state and local files
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# GCP credentials — never commit these
+*.json
+!**/values/*.json
+
+# OS
+.DS_Store
+Thumbs.db
