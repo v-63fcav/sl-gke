@@ -5,6 +5,13 @@ on:
     branches:
       - main
 
+# Um único apply por vez. Compartilhado com tf-destroy.yml para que deploy e
+# destroy nunca rodem simultaneamente no mesmo branch.
+# cancel-in-progress: false → fila; nunca interrompe um apply no meio.
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   infra:
     name: Terraform Deployment - Infra

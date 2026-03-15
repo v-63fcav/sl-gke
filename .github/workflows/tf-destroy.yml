@@ -3,6 +3,12 @@ name: Terraform Destroy
 on:
   workflow_dispatch:
 
+# Mesmo grupo do tf-deploy.yml — impede que destroy e deploy rodem ao mesmo tempo.
+# cancel-in-progress: false → nunca cancela um destroy em andamento.
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   destroy-infra:
     name: Terraform Destroy - Infra
@@ -34,66 +40,6 @@ jobs:
           terraform init \
             -backend-config="bucket=sl-gke-tf-state-cavi" \
             -backend-config="prefix=terraform/infra"
-
-      - name: Export Infra Outputs
-        id: infra
-        run: |
-          echo "cluster_name=$(terraform output -raw cluster_name)"         >> $GITHUB_OUTPUT
-          echo "cluster_endpoint=$(terraform output -raw cluster_endpoint)" >> $GITHUB_OUTPUT
-          echo "project=$(terraform output -raw project)"                   >> $GITHUB_OUTPUT
-          echo "region=$(terraform output -raw region)"                     >> $GITHUB_OUTPUT
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Get GKE credentials
-        run: |
-          gcloud container clusters get-credentials \
-            ${{ steps.infra.outputs.cluster_name }} \
-            --region ${{ steps.infra.outputs.region }} \
-            --project ${{ steps.infra.outputs.project }}
-
-      # Delete Ingress and LoadBalancer Services while the GKE Ingress controller
-      # is still running. The controller deprovisions the GCP Load Balancer and its
-      # associated forwarding rules / backend services on deletion.
-      # If the cluster is destroyed first, those cloud resources are orphaned.
-      - name: Delete Ingress and LoadBalancer Services
-        run: |
-          kubectl delete ingress --all --all-namespaces --ignore-not-found
-          kubectl delete svc --all --all-namespaces --ignore-not-found \
-            --field-selector spec.type=LoadBalancer
-
-          # Poll until no GCP forwarding rules labelled by this cluster remain.
-          PROJECT="${{ steps.infra.outputs.project }}"
-          CLUSTER="${{ steps.infra.outputs.cluster_name }}"
-          echo "Waiting for GCP load balancer resources to be deprovisioned..."
-          for i in $(seq 1 18); do
-            COUNT=$(gcloud compute forwarding-rules list \
-              --project "$PROJECT" \
-              --filter="labels.kubernetes-cluster=$CLUSTER OR description~$CLUSTER" \
-              --format="value(name)" 2>/dev/null | wc -l)
-            if [ "$COUNT" -eq 0 ]; then
-              echo "All forwarding rules cleaned up."
-              break
-            fi
-            echo "  $COUNT forwarding rule(s) still present, waiting 10s... ($i/18)"
-            sleep 10
-          done
-
-      # kube-prometheus-stack removes the Prometheus Operator before its CRD
-      # instances, leaving ServiceMonitors and PrometheusRules stuck in Terminating.
-      # Included here proactively for when the apps layer is deployed in future.
-      - name: Remove Prometheus Operator finalizers
-        run: |
-          for crd in prometheuses alertmanagers prometheusrules servicemonitors \
-                     podmonitors thanosrulers probes prometheusagents scrapeconfigs; do
-            kubectl get "$crd" --all-namespaces --ignore-not-found -o json \
-              | jq -r '.items[] | "\(.metadata.namespace) \(.metadata.name)"' \
-              | while read -r ns name; do
-                  kubectl patch "$crd" "$name" -n "$ns" \
-                    --type=merge -p '{"metadata":{"finalizers":null}}' || true
-                done
-          done
 
       - name: Terraform Destroy - Infra
         run: terraform destroy -auto-approve
