@@ -4,7 +4,7 @@ variable "gcp_project" {
 }
 
 variable "gcp_region" {
-  default     = "us-east1"
+  default     = "us-west1"
   description = "GCP region"
 }
 
