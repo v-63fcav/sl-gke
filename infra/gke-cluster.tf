@@ -106,16 +106,23 @@ resource "google_container_cluster" "primary" {
   ]
 }
 
+# Fetch available zones for the configured region at plan time,
+# so changing var.gcp_region automatically adjusts node placement.
+data "google_compute_zones" "available" {
+  region = var.gcp_region
+  status = "UP"
+}
+
 # Node pool — equivalent to EKS managed node group.
-# Regional pool pinned to 2 of the 3 us-west1 zones to match EKS's 2-AZ layout
+# Regional pool pinned to 2 zones to match EKS's 2-AZ layout
 # and keep node count predictable (1–3 per zone = 2–6 total nodes).
 resource "google_container_node_pool" "primary" {
   name     = "sl-gke-nodes"
   cluster  = google_container_cluster.primary.name
   location = var.gcp_region
 
-  # Restrict to two zones — matches EKS 2-AZ setup
-  node_locations = ["us-west1-b", "us-west1-c"]
+  # Pick the first 2 zones from the region — matches EKS 2-AZ setup
+  node_locations = slice(sort(data.google_compute_zones.available.names), 0, 2)
 
   # Per-zone autoscaling: min 1 × 2 zones = 2 total, max 3 × 2 zones = 6 total
   autoscaling {

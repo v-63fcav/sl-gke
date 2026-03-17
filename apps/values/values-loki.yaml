@@ -18,8 +18,10 @@ loki:
           period: 24h
   storage:
     type: gcs
-    gcs:
-      bucketName: ${loki_bucket_name}
+    bucketNames:
+      chunks: ${loki_bucket_name}
+      ruler: ${loki_bucket_name}
+      admin: ${loki_bucket_name}
 
 singleBinary:
   replicas: 1
