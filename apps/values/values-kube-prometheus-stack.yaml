@@ -1,0 +1,86 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Prometheus
+# ──────────────────────────────────────────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    retentionSize: 40GiB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: standard-rwo
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+      limits:
+        memory: 2Gi
+    enableRemoteWriteReceiver: true
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Alertmanager
+# ──────────────────────────────────────────────────────────────────────────────
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: standard-rwo
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Grafana
+# ──────────────────────────────────────────────────────────────────────────────
+grafana:
+  adminPassword: changeme
+  persistence:
+    enabled: true
+    storageClassName: standard-rwo
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+  ingress:
+    enabled: true
+    ingressClassName: gce
+    path: /*
+    hosts:
+      - ""
+
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki.monitoring.svc.cluster.local:3100
+      access: proxy
+      isDefault: false
+    - name: Tempo
+      type: tempo
+      url: http://tempo.monitoring.svc.cluster.local:3100
+      access: proxy
+      isDefault: false
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: loki
+          spanStartTimeShift: "-1h"
+          spanEndTimeShift: "1h"
+          filterByTraceID: true
+          filterBySpanID: false
+          customQuery: true
+          query: '{namespace="$${__span.tags.namespace}"} | json'
+        lokiSearch:
+          datasourceUid: loki
+        nodeGraph:
+          enabled: true

@@ -1,0 +1,30 @@
+replicaCount: 1
+
+image:
+  repository: node
+  pullPolicy: IfNotPresent
+  tag: "20-alpine"
+
+nameOverride: "node-ws"
+fullnameOverride: ""
+
+service:
+  port: 3000
+
+ingress:
+  enabled: true
+  className: gce
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+otel:
+  inject: true
+  serviceName: node-ws
+  instrumentationRef: nodejs

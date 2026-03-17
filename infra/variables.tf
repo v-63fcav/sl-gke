@@ -4,12 +4,12 @@ variable "gcp_project" {
 }
 
 variable "gcp_region" {
-  default     = "us-east1"
+  default     = "us-west1"
   description = "GCP region"
 }
 
 variable "kubernetes_version" {
-  default     = "1.32"
+  default     = "1.34"
   description = "Minimum GKE master version (used as reference; REGULAR channel manages upgrades)"
 }
 

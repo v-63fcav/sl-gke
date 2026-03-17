@@ -1,0 +1,8 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# OpenTelemetry Operator — Webhook com certificado auto-gerado
+# ──────────────────────────────────────────────────────────────────────────────
+admissionWebhooks:
+  certManager:
+    enabled: false
+  autoGenerateCert:
+    enabled: true

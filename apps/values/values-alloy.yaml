@@ -1,0 +1,67 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Grafana Alloy — DaemonSet para coleta de logs
+# ──────────────────────────────────────────────────────────────────────────────
+controller:
+  type: daemonset
+
+alloy:
+  mounts:
+    varlog: true
+
+  configMap:
+    content: |
+      // ── Descoberta de pods Kubernetes ─────────────────────────────────────
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // ── Relabel: adiciona labels e define caminho do log ──────────────────
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_phase"]
+          regex         = "Pending|Succeeded|Failed|Completed"
+          action        = "drop"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          target_label  = "__path__"
+          replacement   = "/var/log/pods/*$1/*.log"
+        }
+      }
+
+      // ── Leitura dos arquivos de log ───────────────────────────────────────
+      loki.source.file "pod_logs" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [loki.process.pod_logs.receiver]
+      }
+
+      // ── Parse CRI e envio ao Loki ─────────────────────────────────────────
+      loki.process "pod_logs" {
+        stage.cri {}
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: otel-platform
+description: Namespace-wide OTel Instrumentation CRs shared by all apps in the namespace
+type: application
+version: 0.1.0

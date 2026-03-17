@@ -1,0 +1,56 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Loki — SingleBinary mode with GCS backend
+# ──────────────────────────────────────────────────────────────────────────────
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: gcs
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  storage:
+    type: gcs
+    gcs:
+      bucketName: ${loki_bucket_name}
+
+singleBinary:
+  replicas: 1
+  persistence:
+    storageClass: standard-rwo
+    size: 20Gi
+
+# Componentes não usados no SingleBinary
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# Caches incompatíveis com SingleBinary/filesystem
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# Desabilita self-monitoring
+monitoring:
+  selfMonitoring:
+    enabled: false
+  lokiCanary:
+    enabled: false
+
+# Workload Identity — KSA anotada com GSA
+serviceAccount:
+  create: true
+  name: loki
+  annotations:
+    iam.gke.io/gcp-service-account: ${loki_gsa_email}
