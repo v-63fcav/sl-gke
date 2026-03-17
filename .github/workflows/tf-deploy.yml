@@ -63,3 +63,40 @@ jobs:
           echo "cluster_ca=$(terraform output -raw cluster_ca)"             >> $GITHUB_OUTPUT
           echo "project=$(terraform output -raw project)"                   >> $GITHUB_OUTPUT
           echo "region=$(terraform output -raw region)"                     >> $GITHUB_OUTPUT
+
+  apps:
+    name: Terraform Deployment - Apps
+    needs: infra
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=sl-gke-tf-state-cavi" \
+            -backend-config="prefix=terraform/apps"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -no-color -input=false
+        continue-on-error: false
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve

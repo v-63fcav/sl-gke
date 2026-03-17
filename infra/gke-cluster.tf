@@ -107,7 +107,7 @@ resource "google_container_cluster" "primary" {
 }
 
 # Node pool — equivalent to EKS managed node group.
-# Regional pool pinned to 2 of the 3 us-east1 zones to match EKS's 2-AZ layout
+# Regional pool pinned to 2 of the 3 us-west1 zones to match EKS's 2-AZ layout
 # and keep node count predictable (1–3 per zone = 2–6 total nodes).
 resource "google_container_node_pool" "primary" {
   name     = "sl-gke-nodes"
@@ -115,7 +115,7 @@ resource "google_container_node_pool" "primary" {
   location = var.gcp_region
 
   # Restrict to two zones — matches EKS 2-AZ setup
-  node_locations = ["us-east1-b", "us-east1-c"]
+  node_locations = ["us-west1-b", "us-west1-c"]
 
   # Per-zone autoscaling: min 1 × 2 zones = 2 total, max 3 × 2 zones = 6 total
   autoscaling {
