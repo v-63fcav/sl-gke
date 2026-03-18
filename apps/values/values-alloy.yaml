@@ -55,9 +55,14 @@ alloy:
         }
       }
 
+      // ── Expansão de globs em arquivos reais ──────────────────────────────
+      local.file_match "pod_logs" {
+        path_targets = discovery.relabel.pod_logs.output
+      }
+
       // ── Leitura dos arquivos de log ───────────────────────────────────────
       loki.source.file "pod_logs" {
-        targets    = discovery.relabel.pod_logs.output
+        targets    = local.file_match.pod_logs.targets
         forward_to = [loki.process.pod_logs.receiver]
       }
 
