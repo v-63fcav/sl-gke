@@ -108,7 +108,13 @@ O Loki é um backend passivo — ele apenas armazena logs que são enviados para
 
 DaemonSet que roda em cada node e coleta logs de contêiner de `/var/log/pods/`. Substitui o Promtail com uma configuração em **River** (linguagem nativa do Alloy). Anexa automaticamente labels Kubernetes (`namespace`, `pod`, `container`, `node`) como labels de stream do Loki.
 
-Logs são enviados para: `http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push`
+Logs são enviados para: `http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push` (gateway nginx do Loki chart v6.x, porta 80).
+
+> **Nota — `local.file_match` é obrigatório no Alloy:**
+> Diferente do Promtail, o componente `loki.source.file` do Alloy **não expande globs** — ele tenta abrir o `__path__` literalmente. Para coletar logs de pods, o pipeline River precisa de três estágios:
+> 1. `discovery.relabel` — constrói o `__path__` com glob (ex: `.../<container>/*.log`)
+> 2. `local.file_match` — expande o glob em arquivos reais (`0.log`, `1.log`, etc.)
+> 3. `loki.source.file` — faz tail dos arquivos concretos
 
 **Como usar:** nenhuma configuração necessária por aplicação — todo stdout/stderr de todos os namespaces é coletado automaticamente assim que o Alloy está rodando.
 
@@ -285,7 +291,8 @@ kube_prometheus_stack
 | Tempo | 4318 | HTTP (OTLP) | Receber spans das apps auto-instrumentadas |
 | Tempo | 3100 | HTTP | API de consulta usada pelo Grafana |
 | Prometheus | 9090 | HTTP | Receber métricas via remote write |
-| Loki | 3100 | HTTP | Receber logs do Alloy |
+| Loki (gateway) | 80 | HTTP | Ponto de entrada para push/query (nginx → singleBinary) |
+| Loki (singleBinary) | 3100 | HTTP | API interna (acessada via gateway) |
 | node-ws | 3000 | HTTP | Endpoint da aplicação |
 | GKE LB (node-ws) | 80 | HTTP | Ponto de entrada público para o node-ws |
 
