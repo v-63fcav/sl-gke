@@ -55,7 +55,8 @@ grafana:
 
   ingress:
     enabled: true
-    ingressClassName: gce
+    annotations:
+      kubernetes.io/ingress.class: gce
     path: /*
     hosts:
       - ""

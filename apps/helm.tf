@@ -3,22 +3,6 @@
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ──────────────────────────────────────────────────────────────────────────────
-# GCE IngressClass — GKE doesn't always auto-create this object.
-# Without it, spec.ingressClassName: gce is ignored by the GLBC controller.
-# ──────────────────────────────────────────────────────────────────────────────
-resource "kubernetes_ingress_class_v1" "gce" {
-  metadata {
-    name = "gce"
-    annotations = {
-      "ingressclass.kubernetes.io/is-default-class" = "true"
-    }
-  }
-  spec {
-    controller = "k8s.io/ingress-gce"
-  }
-}
-
-# ──────────────────────────────────────────────────────────────────────────────
 # 1. kube-prometheus-stack (Prometheus + Grafana + Alertmanager)
 # ──────────────────────────────────────────────────────────────────────────────
 resource "helm_release" "kube_prometheus_stack" {
