@@ -58,6 +58,7 @@ grafana:
     annotations:
       kubernetes.io/ingress.class: gce
     path: /*
+    pathType: ImplementationSpecific
     hosts:
       - ""
 
