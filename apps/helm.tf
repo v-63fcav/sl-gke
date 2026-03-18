@@ -99,6 +99,13 @@ resource "helm_release" "otel_platform" {
     {
       name  = "tempoEndpoint"
       value = "http://tempo.monitoring.svc.cluster.local:4318"
+    },
+    {
+      name  = "chartHash"
+      value = sha256(join("", [
+        for f in sort(fileset("${path.module}/charts/otel-platform-chart", "**")) :
+        file("${path.module}/charts/otel-platform-chart/${f}")
+      ]))
     }
   ]
 
@@ -114,6 +121,16 @@ resource "helm_release" "node_ws" {
   namespace = "default"
 
   values = [file("${path.module}/charts/app-chart/values.yaml")]
+
+  set = [
+    {
+      name  = "chartHash"
+      value = sha256(join("", [
+        for f in sort(fileset("${path.module}/charts/app-chart", "**")) :
+        file("${path.module}/charts/app-chart/${f}")
+      ]))
+    }
+  ]
 
   depends_on = [helm_release.otel_platform]
 }
