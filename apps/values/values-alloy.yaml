@@ -40,12 +40,18 @@ alloy:
           regex         = "Pending|Succeeded|Failed|Completed"
           action        = "drop"
         }
+        // Build the pod log directory: <namespace>_<pod>_<uid>
         rule {
-          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name", "__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name", "__meta_kubernetes_pod_uid"]
+          separator     = "_"
+          target_label  = "__pod_log_dir__"
+        }
+        // Set __path__ = /var/log/pods/<dir>/<container>/*.log
+        rule {
+          source_labels = ["__pod_log_dir__", "__meta_kubernetes_pod_container_name"]
           separator     = "/"
-          regex         = "(.+)/(.+)/(.+)/(.+)"
           target_label  = "__path__"
-          replacement   = "/var/log/pods/$1_$2_$3/$4/*.log"
+          replacement   = "/var/log/pods/$1/*.log"
         }
       }
 
