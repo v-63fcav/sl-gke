@@ -3,6 +3,22 @@
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ──────────────────────────────────────────────────────────────────────────────
+# GCE IngressClass — GKE doesn't always auto-create this object.
+# Without it, spec.ingressClassName: gce is ignored by the GLBC controller.
+# ──────────────────────────────────────────────────────────────────────────────
+resource "kubernetes_ingress_class_v1" "gce" {
+  metadata {
+    name = "gce"
+    annotations = {
+      "ingressclass.kubernetes.io/is-default-class" = "true"
+    }
+  }
+  spec {
+    controller = "k8s.io/ingress-gce"
+  }
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
 # 1. kube-prometheus-stack (Prometheus + Grafana + Alertmanager)
 # ──────────────────────────────────────────────────────────────────────────────
 resource "helm_release" "kube_prometheus_stack" {
@@ -110,6 +126,23 @@ resource "helm_release" "otel_platform" {
   ]
 
   depends_on = [time_sleep.otel_operator_ready]
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GCE IngressClass — GKE doesn't always auto-create this object.
+# The GLBC controller is running but needs the IngressClass to match
+# Ingress resources that use spec.ingressClassName: gce
+# ──────────────────────────────────────────────────────────────────────────────
+resource "kubernetes_ingress_class_v1" "gce" {
+  metadata {
+    name = "gce"
+    annotations = {
+      "ingressclass.kubernetes.io/is-default-class" = "true"
+    }
+  }
+  spec {
+    controller = "k8s.io/ingress-gce"
+  }
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
