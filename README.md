@@ -12,29 +12,29 @@ GCP Project: gen-lang-client-0403070412
 Region:      us-east1
 
 VPC: sl-gke-vpc (10.0.0.0/16)
-  └─ Subnet: sl-gke-nodes (us-east1)
-       ├─ Pods:     10.1.0.0/16  (alias IPs, VPC-native)
-       └─ Services: 10.2.0.0/20  (alias IPs, VPC-native)
+  +-- Subnet: sl-gke-nodes (us-east1)
+       |-- Pods:     10.1.0.0/16  (alias IPs, VPC-native)
+       +-- Services: 10.2.0.0/20  (alias IPs, VPC-native)
 
-Cloud Router + Cloud NAT   → outbound internet for private nodes
+Cloud Router + Cloud NAT   -> outbound internet for private nodes
 
 GKE Cluster: sl-gke (Regional, REGULAR channel)
-  └─ Node Pool: sl-gke-nodes
-       ├─ Zones:    us-east1-b, us-east1-c
-       ├─ Machine:  e2-standard-2
-       ├─ Min/Max:  2–6 nodes (1–3 per zone)
-       ├─ Private nodes (no external IPs)
-       └─ Workload Identity enabled
+  +-- Node Pool: sl-gke-nodes
+       |-- Zones:    us-east1-b, us-east1-c
+       |-- Machine:  e2-standard-2
+       |-- Min/Max:  2-6 nodes (1-3 per zone)
+       |-- Private nodes (no external IPs)
+       +-- Workload Identity enabled
 
 IAM:
-  ├─ Node SA:       sl-gke-node-sa  (logging, monitoring, artifact registry)
-  ├─ Terraform SA:  terraform-gke-deploy  (container/compute/iam/storage admin)
-  └─ Admin user:    v-63fcav@hotmail.com  (container.admin, compute.admin)
+  |-- Node SA:       sl-gke-node-sa  (logging, monitoring, artifact registry)
+  |-- Terraform SA:  terraform-gke-deploy  (container/compute/iam/storage admin)
+  +-- Admin user:    v-63fcav@hotmail.com  (container.admin, compute.admin)
 
 GitHub Actions auth:
-  └─ WIF Pool:     github-actions
-       └─ Provider: github-oidc  (token.actions.githubusercontent.com)
-            └─ Scoped to: v-63fcav/sl-gke
+  +-- WIF Pool:     github-actions
+       +-- Provider: github-oidc  (token.actions.githubusercontent.com)
+            +-- Scoped to: v-63fcav/sl-gke
 ```
 
 **GKE vs EKS equivalents:**
@@ -156,18 +156,18 @@ kubectl get nodes
 
 ```
 sl-gke/
-├── infra/
-│   ├── versions.tf       # google provider ~> 6.0
-│   ├── variables.tf      # project, region, CIDRs, admin email, github repo
-│   ├── backend.tf        # GCS backend: sl-gke-tf-state-cavi / terraform/infra
-│   ├── apis.tf           # Enable required GCP APIs
-│   ├── vpc.tf            # VPC, subnet (with pod/svc secondary ranges), Cloud NAT
-│   ├── firewall.tf       # RFC-1918 ingress + GCP health check sources
-│   ├── gke-cluster.tf    # GKE cluster + node pool + node SA
-│   ├── wif.tf            # WIF pool/provider, Terraform SA, admin IAM bindings
-│   └── outputs.tf        # cluster_name, endpoint, CA, WIF outputs
-└── .github/
-    └── workflows/
-        ├── tf-deploy.yml  # Deploy on push to main (WIF auth)
-        └── tf-destroy.yml # Manual destroy with LB cleanup
+|-- infra/
+|   |-- versions.tf       # google provider ~> 6.0
+|   |-- variables.tf      # project, region, CIDRs, admin email, github repo
+|   |-- backend.tf        # GCS backend: sl-gke-tf-state-cavi / terraform/infra
+|   |-- apis.tf           # Enable required GCP APIs
+|   |-- vpc.tf            # VPC, subnet (with pod/svc secondary ranges), Cloud NAT
+|   |-- firewall.tf       # RFC-1918 ingress + GCP health check sources
+|   |-- gke-cluster.tf    # GKE cluster + node pool + node SA
+|   |-- wif.tf            # WIF pool/provider, Terraform SA, admin IAM bindings
+|   +-- outputs.tf        # cluster_name, endpoint, CA, WIF outputs
++-- .github/
+    +-- workflows/
+        |-- tf-deploy.yml  # Deploy on push to main (WIF auth)
+        +-- tf-destroy.yml # Manual destroy with LB cleanup
 ```

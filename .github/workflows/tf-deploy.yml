@@ -16,6 +16,7 @@ jobs:
   infra:
     name: Terraform Deployment - Infra
     runs-on: ubuntu-latest
+    environment: production
     outputs:
       cluster_name:     ${{ steps.export.outputs.cluster_name }}
       cluster_endpoint: ${{ steps.export.outputs.cluster_endpoint }}
