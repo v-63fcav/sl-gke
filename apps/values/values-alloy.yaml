@@ -1,0 +1,79 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Grafana Alloy — DaemonSet para coleta de logs
+# ──────────────────────────────────────────────────────────────────────────────
+controller:
+  type: daemonset
+
+alloy:
+  mounts:
+    varlog: true
+
+  configMap:
+    content: |
+      // ── Descoberta de pods Kubernetes ─────────────────────────────────────
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // ── Relabel: adiciona labels e define caminho do log ──────────────────
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_phase"]
+          regex         = "Pending|Succeeded|Failed|Completed"
+          action        = "drop"
+        }
+        // Build the pod log directory: <namespace>_<pod>_<uid>
+        rule {
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name", "__meta_kubernetes_pod_uid"]
+          separator     = "_"
+          target_label  = "__pod_log_dir__"
+        }
+        // Set __path__ = /var/log/pods/<dir>/<container>/*.log
+        rule {
+          source_labels = ["__pod_log_dir__", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          target_label  = "__path__"
+          replacement   = "/var/log/pods/$1/*.log"
+        }
+      }
+
+      // ── Expansão de globs em arquivos reais ──────────────────────────────
+      local.file_match "pod_logs" {
+        path_targets = discovery.relabel.pod_logs.output
+      }
+
+      // ── Leitura dos arquivos de log ───────────────────────────────────────
+      loki.source.file "pod_logs" {
+        targets    = local.file_match.pod_logs.targets
+        forward_to = [loki.process.pod_logs.receiver]
+      }
+
+      // ── Parse CRI e envio ao Loki ─────────────────────────────────────────
+      loki.process "pod_logs" {
+        stage.cri {}
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+        }
+      }

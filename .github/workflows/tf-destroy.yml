@@ -10,8 +10,61 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  destroy-apps:
+    name: Terraform Destroy - Apps
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=sl-gke-tf-state-cavi" \
+            -backend-config="prefix=terraform/apps"
+
+      - name: Terraform Destroy - Apps
+        run: terraform destroy -auto-approve
+
+      # Aguarda LBs do GKE Ingress serem desprovisionados antes de destruir o cluster.
+      # Sem isso, forwarding rules órfãs bloqueiam a exclusão da VPC.
+      - name: Aguardar exclusão dos Load Balancers
+        run: |
+          echo "Aguardando forwarding rules serem removidas..."
+          for i in $(seq 1 30); do
+            COUNT=$(gcloud compute forwarding-rules list \
+              --project=gen-lang-client-0403070412 \
+              --format="value(name)" 2>/dev/null | wc -l)
+            if [ "$COUNT" -eq 0 ]; then
+              echo "Todas as forwarding rules foram removidas."
+              exit 0
+            fi
+            echo "Ainda existem $COUNT forwarding rules. Tentativa $i/30..."
+            sleep 10
+          done
+          echo "AVISO: Timeout aguardando forwarding rules. Prosseguindo com destroy."
+
   destroy-infra:
     name: Terraform Destroy - Infra
+    needs: destroy-apps
     runs-on: ubuntu-latest
     permissions:
       contents: read
