@@ -1,11 +1,11 @@
 # sl-gke
 
-GKE infrastructure mirroring the [sl-eks](../sl-eks) architecture on Google Cloud Platform.
-Observability stack (Prometheus, Loki, Tempo, Grafana, OTel) is deployed in a separate `apps` layer (not yet created).
+Infraestrutura GKE espelhando a arquitetura do [sl-eks](../sl-eks) no Google Cloud Platform.
+A stack de observabilidade (Prometheus, Loki, Tempo, Grafana, OTel) está implantada na camada [`apps/`](apps/) — consulte o [README da camada apps](apps/README.md) para detalhes.
 
 ---
 
-## Architecture
+## Arquitetura
 
 ```
 GCP Project: gen-lang-client-0403070412
@@ -37,26 +37,26 @@ GitHub Actions auth:
             +-- Scoped to: v-63fcav/sl-gke
 ```
 
-**GKE vs EKS equivalents:**
+**Equivalências GKE vs EKS:**
 
 | EKS | GKE |
 |---|---|
-| VPC + private subnets | VPC + subnet with alias IPs |
+| VPC + private subnets | VPC + subnet com alias IPs |
 | NAT Gateway | Cloud NAT |
 | Security Groups | VPC Firewall rules |
 | EBS CSI addon | GCE PD CSI addon (built-in) |
 | ALB via aws-load-balancer-controller | GCP LB via built-in GKE Ingress addon |
-| IRSA (IAM Roles for Service Accounts) | Workload Identity (cluster-level, apps layer binds KSAs) |
-| EKS Access Entries | IAM `container.admin` → implicit `cluster-admin` |
+| IRSA (IAM Roles for Service Accounts) | Workload Identity (cluster-level, apps layer vincula KSAs) |
+| EKS Access Entries | IAM `container.admin` → `cluster-admin` implícito |
 | S3 backend | GCS backend |
 | AWS credentials via GitHub Secrets | SA JSON key via `GCP_CREDENTIALS` GitHub Secret |
 
 ---
 
-## Bootstrap (one-time, run locally)
+## Bootstrap (único, executar localmente)
 
-GitHub Actions authenticates using a Service Account JSON key stored as a GitHub Secret.
-The SA is created outside Terraform (bootstrapped with `gcloud`) so there is no chicken-and-egg problem.
+O GitHub Actions autentica usando uma JSON key de Service Account armazenada como GitHub Secret.
+A SA é criada fora do Terraform (bootstrap via `gcloud`), então não há problema de chicken-and-egg.
 
 ```bash
 # 1. Authenticate locally
@@ -95,39 +95,39 @@ gcloud iam service-accounts keys create key.json \
   --iam-account="$SA"
 ```
 
-Then set the secret in your GitHub repo:
+Em seguida, configure o secret no seu repositório GitHub:
 `Settings → Secrets and variables → Actions → New repository secret`
 
-| Secret | Value |
+| Secret | Valor |
 |---|---|
-| `GCP_CREDENTIALS` | full contents of `key.json` |
+| `GCP_CREDENTIALS` | conteúdo completo do `key.json` |
 
-> **Security note:** treat `key.json` like a password. Delete it locally after uploading (`rm key.json`) and rotate it periodically via `gcloud iam service-accounts keys create`.
+> **Nota de segurança:** trate o `key.json` como uma senha. Delete-o localmente após o upload (`rm key.json`) e faça rotação periodicamente via `gcloud iam service-accounts keys create`.
 
-After this, all future deploys run fully via GitHub Actions.
+Após isso, todos os deploys futuros rodam inteiramente via GitHub Actions.
 
 ---
 
-## GitHub Actions Workflows
+## Workflows do GitHub Actions
 
-| Workflow | Trigger | Action |
+| Workflow | Trigger | Ação |
 |---|---|---|
-| `tf-deploy.yml` | Push to `main` | `terraform apply` on `infra/` |
-| `tf-destroy.yml` | Manual (`workflow_dispatch`) | Safely tears down LBs, then destroys infra |
+| `tf-deploy.yml` | Push para `main` | `terraform apply` em `infra/` |
+| `tf-destroy.yml` | Manual (`workflow_dispatch`) | Destrói infra de forma segura com limpeza de LBs |
 
-### Destroy sequence
+### Sequência de destroy
 
-The destroy workflow cleans up cloud resources in the correct order to avoid orphaned GCP Load Balancers blocking cluster deletion:
+O workflow de destroy limpa os recursos de nuvem na ordem correta para evitar que Google Cloud Load Balancers órfãos bloqueiem a exclusão do cluster:
 
-1. Fetch cluster credentials via `gcloud container clusters get-credentials`
-2. Delete all Ingress and LoadBalancer Services (triggers GKE Ingress controller to deprovision GCP LBs)
-3. Poll forwarding rules until gone (up to 180s)
-4. Strip Prometheus Operator CRD finalizers (no-op until apps layer is deployed)
-5. `terraform destroy` the infra layer
+1. Busca credenciais do cluster via `gcloud container clusters get-credentials`
+2. Deleta todos os Ingress e LoadBalancer Services (aciona o GKE Ingress controller para desprovisionar os GCP LBs)
+3. Aguarda a remoção das forwarding rules (até 180s)
+4. Remove finalizers dos CRDs do Prometheus Operator (sem efeito até a camada apps ser implantada)
+5. `terraform destroy` na camada infra
 
 ---
 
-## Local Usage
+## Uso Local
 
 ```bash
 cd infra
@@ -152,7 +152,7 @@ kubectl get nodes
 
 ---
 
-## Directory Structure
+## Estrutura de Diretórios
 
 ```
 sl-gke/
@@ -171,4 +171,3 @@ sl-gke/
         |-- tf-deploy.yml  # Deploy on push to main (WIF auth)
         +-- tf-destroy.yml # Manual destroy with LB cleanup
 ```
-
